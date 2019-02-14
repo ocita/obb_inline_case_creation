@@ -1,0 +1,89 @@
+<?php
+function  obb_inline_case_creation_init()
+{
+    /*
+     * We need todo this because of rules where bootstrap theme is not loaded.
+     */
+    $include = drupal_get_path('theme', 'bootstrap') . '/includes/process.inc';
+    require_once $include;
+    $include = drupal_get_path('theme', 'bootstrap') . '/includes/common.inc';
+    require_once $include;
+}
+function obb_inline_case_creation_menu() {
+    $items = array();
+    
+    $items['obb/get/inline/form/ajax/%/%'] = array(
+    'page callback' => 'obb_inline_case_creation_comment_get',
+    'delivery callback' => 'ajax_deliver',
+    'page arguments' => array(5,6),
+    'access arguments' => array('access content'),
+    'theme callback' => 'ajax_base_page_theme',
+    'type' => MENU_CALLBACK,
+    );
+     
+     return $items;
+}
+
+/*
+ * Get create form for type of node we want to make.
+ */
+function obb_inline_case_creation_comment_get($node_type,$ticket_id) {
+    
+    module_load_include('inc', 'node', 'node.pages');
+    $parent_node = node_load($ticket_id);
+    //$form = node_add($node_type); -> this does not work!!
+    global $user;
+    $node = (object) array('uid' => $user->uid, 'name' => (isset($user->name) ? $user->name : ''), 'type' => $node_type, 'language' => LANGUAGE_NONE);
+     $form_state['build_info']['args'] = array($node);
+     form_load_include($form_state, 'inc', 'node', 'node.pages');
+     $form =  drupal_build_form($node_type.'_node_form', $form_state);
+    
+    if($node_type == "ticket_note")
+    {
+         $form['field_ticket_reference_from_node']['und'][0]['target_id']['#value'] = "$parent_node->title ($parent_node->nid)";
+         $form['#action'] = "/node/add/ticket-note/?field_ticket_reference_from_node=" . $ticket_id . "&destination=ticket/" . $ticket_id;
+    }
+    else
+    {
+         $form['field_ticket_reference']['und'][0]['target_id']['#value'] = "$parent_node->title ($parent_node->nid)";
+         $form['#action'] = "/node/add/ticket-reply/?field_ticket_reference=" . $ticket_id . "&destination=ticket/" . $ticket_id;
+         
+    }
+    $form['actions']['cancel']= $form['actions']['preview'];
+    $form['actions']['cancel']['#value'] = t('cancel');
+    $form['actions']['cancel']['#attributes']['onclick'] = "jQuery('.view-ticket-replys-on-ticket .node-form').remove();return false;";
+    //$form["additional_settings"]['#attributes']['class'] = array('js-hide');
+    $form['add_options'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Additional options'),
+    '#collapsible' => TRUE, // Added
+    '#collapsed' => TRUE,  // Added
+    '#weight' => 100,
+  );
+    $form['add_options']["additional_settings"] = $form["additional_settings"];
+    hide($form["additional_settings"]);
+    //$form_state['rebuild'] = FALSE;
+
+    //$form['field_filer'];
+    //$form['additional_settings']['group']['#attributes']['class'] = array('js-hide');
+    hide($form['actions']['preview']);
+    ///node/add/ticket-reply?field_ticket_reference=21793&destination=ticket/21793
+    //$form_state = array();
+    //form_set_cache($form['#build_id'], $form, $form_state);
+    $rendered_form = drupal_render($form);
+    $commands = array();
+    
+    
+    $commands[] = ajax_command_replace('.node-ticket_note-form','');
+    $commands[] = ajax_command_replace('.node-ticket_reply-form','');
+    $commands[] = ajax_command_append('.view-ticket-replys-on-ticket',$rendered_form);
+    return array('#type' => 'ajax', '#commands' => $commands);
+}
+/*
+ * Add js to view
+ */
+function obb_inline_case_creation_views_post_execute(&$view) {
+  if ($view->name == 'ticket_replys_on_ticket') {
+      drupal_add_js(drupal_get_path('module', 'obb_inline_case_creation').'/js/obb_inline_case_creation.js');
+  }
+}
