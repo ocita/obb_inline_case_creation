@@ -1,7 +1,6 @@
 (function ($) {
     $(document).ready(function () {
-        
-        $('body').on('click','.view-footer a',function(e){
+        function inline_entity_creation(e){
             $('.view-ticket-replys-on-ticket .node-form').remove();
             var elem = $(e.currentTarget);
             var link = elem.attr('href');
@@ -36,8 +35,11 @@
                 elem.click();
                 elem.unbind('click');
                 return false;
-        });
+        }
+        
+        $('body').on('click','.view-footer a',inline_entity_creation);
+        $('body').on('click','.view-empty a',inline_entity_creation);
+        
     });
 })(jQuery);
-
 
